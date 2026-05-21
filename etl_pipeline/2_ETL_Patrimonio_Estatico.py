@@ -79,7 +79,7 @@ def extreure_dades_wikidata():
         # Servei de traducció de Wikidata
         SERVICE wikibase:label { bd:serviceParam wikibase:language "ca,es,en". }
     }
-    LIMIT 250000
+    LIMIT 25000
     """
     
     # Si no nos identificamos Wikidata nos bloqueará por exceso de consultas
