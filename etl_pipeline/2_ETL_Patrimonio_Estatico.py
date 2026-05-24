@@ -4,6 +4,8 @@ from psycopg2.extras import execute_batch
 import sys
 import time
 from datetime import datetime
+import concurrent.futures
+import threading
 
 # ==========================================
 # ⚙️ 1. CONFIGURACIÓ DE L'ENTORN
@@ -17,6 +19,10 @@ DB_CONFIG = {
 }
 
 WIKIDATA_ENDPOINT = "https://query.wikidata.org/sparql"
+HEADERS = {
+    "User-Agent": "TFG-IDE-Cultural-Radar/1.0 (guillemfernandezz@gmail.com)",
+    "Accept": "application/sparql-results+json"
+}
 
 def log(missatge):
     temps = datetime.now().strftime("%H:%M:%S")
@@ -27,12 +33,13 @@ def log(missatge):
 # 🏗️ 2. APROVISIONAMENT (DDL)
 # ==========================================
 def preparar_base_de_dades():
-    """Crea la taula per al patrimoni monumental amb el model ric."""
     log("Verificant l'estructura a PostGIS per al Patrimoni Estàtic...")
     sql_setup = """
         CREATE SCHEMA IF NOT EXISTS ide_cultural;
+        
+        DROP TABLE IF EXISTS ide_cultural.patrimoni_monumental;
 
-        CREATE TABLE IF NOT EXISTS ide_cultural.patrimoni_monumental (
+        CREATE TABLE ide_cultural.patrimoni_monumental (
             id_wikidata VARCHAR PRIMARY KEY,
             nom VARCHAR(512),
             descripcio TEXT,
@@ -43,7 +50,7 @@ def preparar_base_de_dades():
             id_arqueo VARCHAR(50),
             url_oficial_gencat VARCHAR(1024),
             imatge_url VARCHAR(1024),
-            web_oficial VARCHAR(1024),
+            google_maps_url VARCHAR(1024),
             wikipedia_url VARCHAR(1024),
             lat NUMERIC(10, 6),
             lon NUMERIC(10, 6),
@@ -66,84 +73,123 @@ def preparar_base_de_dades():
         if 'conn' in locals() and conn is not None: conn.close()
 
 # ==========================================
-# 📥 3. EXTRACT (SPARQL Optimitzat + Paginació)
+# 📍 3A. OBTENIR CENTRES DEL RADAR (Coordenades Municipals)
 # ==========================================
-def extreure_dades_wikidata():
-    log("Iniciant extracció optimitzada per blocs (inclou descripcions)...")
+def obtenir_centres_radar():
+    log("Extreient la xarxa de coordenades per al radar (Sense noms per màxima velocitat)...")
     
-    mida_bloc = 2500  # 2500 monuments per bloc per evitar timeouts i sobrecàrrega
-    blocs_totals = 12  # 12 blocs x 2500 = Capacitat per 30.000 registres
-    tots_els_resultats = []
-    
-    headers = {
-        "User-Agent": "TFG-IDE-Cultural (guillemfernandezz@gmail.com)",
-        "Accept": "application/sparql-results+json"
+    # Consulta ultra-lleugera: només volem els punts matemàtics dels 947 municipis
+    query = """
+    SELECT DISTINCT ?coords WHERE {
+      ?muni wdt:P31 wd:Q33146843.
+      ?muni wdt:P131* wd:Q5705.
+      ?muni wdt:P625 ?coords.
     }
+    """
+    try:
+        res = requests.get(WIKIDATA_ENDPOINT, params={'query': query}, headers=HEADERS, timeout=60)
+        res.raise_for_status()
+        dades = res.json()['results']['bindings']
+        
+        centres = []
+        for item in dades:
+            coord_raw = item['coords']['value']
+            coord_clean = coord_raw.replace("Point(", "").replace(")", "").strip()
+            lon, lat = coord_clean.split(" ")
+            centres.append({"lat": lat, "lon": lon})
+            
+        log(f"✅ Xarxa radar preparada: {len(centres)} nodes de llançament a Catalunya.")
+        return centres
+    except Exception as e:
+        log(f"❌ Error obtenint els centres del radar: {e}")
+        sys.exit(1)
+
+# ==========================================
+# 📡 3B. EXTRACT (Escombrada de Radar 16km)
+# ==========================================
+
+def processar_node(centre, index, total_centres, monuments_dict, dict_lock):
+    """Funció que executarà cada fil (thread) de forma independent."""
+    lat = centre['lat']
+    lon = centre['lon']
     
-    for i in range(blocs_totals):
-        offset = i * mida_bloc
-        log(f"📥 Demanant bloc {i+1}/{blocs_totals} (Monuments del {offset} al {offset + mida_bloc})...")
-        
-        query = f"""
-        SELECT DISTINCT 
-            ?monument ?monumentLabel ?desc ?coords ?imatge ?catLabel 
-            ?idIpac ?idArqueo ?proteccioLabel ?estilLabel
-        WHERE {{
-            ?monument wdt:P131* wd:Q5705.       
-            
-            {{ ?monument wdt:P1600 ?idIpac. }} UNION {{ ?monument wdt:P3861 ?idArqueo. }}
-            
-            ?monument wdt:P625 ?coords;
-                      wdt:P18 ?imatge;
-                      wdt:P31 ?categoria.
-                      
-            OPTIONAL {{ ?monument wdt:P1435 ?proteccio. }}
-            OPTIONAL {{ ?monument wdt:P149 ?estil. }}
-            
-            SERVICE wikibase:label {{ 
-                bd:serviceParam wikibase:language "ca,es,en". 
-                ?monument rdfs:label ?monumentLabel.
-                ?monument schema:description ?desc.
-                ?categoria rdfs:label ?catLabel.
-                ?proteccio rdfs:label ?proteccioLabel.
-                ?estil rdfs:label ?estilLabel.
-            }}
+    query = f"""
+    SELECT DISTINCT 
+        ?monument ?monumentLabel ?desc ?coords ?imatge ?catLabel 
+        ?idIpac ?idArqueo ?proteccioLabel ?estilLabel ?wikipedia_link
+    WHERE {{
+        SERVICE wikibase:around {{
+            ?monument wdt:P625 ?coords.
+            bd:serviceParam wikibase:center "Point({lon} {lat})"^^geo:wktLiteral.
+            bd:serviceParam wikibase:radius "16".
         }}
-        ORDER BY ?monument
-        LIMIT {mida_bloc}
-        OFFSET {offset}
-        """
+        {{ ?monument wdt:P1600 ?idIpac. }} UNION {{ ?monument wdt:P3861 ?idArqueo. }}
         
-        try:
-            response = requests.get(WIKIDATA_ENDPOINT, params={'query': query}, headers=headers, timeout=120)
-            response.raise_for_status()
+        ?monument wdt:P18 ?imatge;
+                  wdt:P31 ?categoria.
+                  
+        OPTIONAL {{ ?monument wdt:P1435 ?proteccio. }}
+        OPTIONAL {{ ?monument wdt:P149 ?estil. }}
+        OPTIONAL {{
+            ?wikipedia_link schema:about ?monument ;
+                            schema:isPartOf <https://ca.wikipedia.org/> .
+        }}
+        
+        SERVICE wikibase:label {{ 
+            bd:serviceParam wikibase:language "ca,es,en". 
+            ?monument rdfs:label ?monumentLabel.
+            ?monument schema:description ?desc.
+            ?categoria rdfs:label ?catLabel.
+            ?proteccio rdfs:label ?proteccioLabel.
+            ?estil rdfs:label ?estilLabel.
+        }}
+    }}
+    """
+    try:
+        res = requests.get(WIKIDATA_ENDPOINT, params={'query': query}, headers=HEADERS, timeout=20)
+        if res.status_code == 200:
+            resultats = res.json()['results']['bindings']
             
-            dades = response.json()
-            bloc_resultats = dades['results']['bindings']
-            
-            if not bloc_resultats:
-                log("ℹ️ No hi ha més registres disponibles a Wikidata. Finalitzant bucle.")
-                break
+            # Bloquegem el diccionari un microsegon per evitar que dos fils escriguin alhora
+            with dict_lock:
+                for item in resultats:
+                    m_id = item.get("monument", {}).get("value", "").split("/")[-1]
+                    monuments_dict[m_id] = item
                 
-            tots_els_resultats.extend(bloc_resultats)
-            log(f"✅ Bloc {i+1} processat correctament ({len(bloc_resultats)} elements).")
+                # Fem log només cada 50 nodes per no col·lapsar la terminal
+                if (index + 1) % 50 == 0 or (index + 1) == total_centres:
+                    log(f"   📡 [Fil Actiu] Processats {index + 1}/{total_centres} nodes. Joies: {len(monuments_dict)}")
+        
+        time.sleep(0.5) # Pausa obligatòria per no ser banejat per DDoS
+    except Exception:
+        pass # Si falla un, el radar adjacent ho cobrirà
+
+def escombrada_radar(centres):
+    log("Iniciant escombrada espacial MULTIHILO (màx 5 connexions simultànies)...")
+    
+    monuments_dict = {}
+    total_centres = len(centres)
+    dict_lock = threading.Lock() # Cadenat de seguretat per al diccionari compartit
+    
+    # Utilitzem ThreadPoolExecutor per llençar 5 peticions a la vegada
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futurs = []
+        for i, centre in enumerate(centres):
+            # Enviem la tasca a la piscina de treballadors
+            futurs.append(executor.submit(processar_node, centre, i, total_centres, monuments_dict, dict_lock))
             
-            # Deixem respirar el servidor 2 segons
-            time.sleep(2.0)  
-            
-        except Exception as e:
-            log(f"⚠️ Error al bloc {i+1} (Offset {offset}): {e}.")
-            log("Intentant continuar amb el següent bloc...")
-            continue
-            
-    log(f"🏁 Extracció massiva completada: {len(tots_els_resultats)} monuments totals obtinguts.")
-    return tots_els_resultats
+        # Esperem a que tots els treballadors acabin
+        concurrent.futures.wait(futurs)
+
+    dades_brutes = list(monuments_dict.values())
+    log(f"🏁 Escombrada MULTIHILO completada. {len(dades_brutes)} monuments únics absoluts extrets.")
+    return dades_brutes
 
 # ==========================================
 # 🔄 4. TRANSFORM
 # ==========================================
 def transformar_dades(dades_brutes):
-    log("Transformant el graf de coneixement a format relacional...")
+    log("Transformant i netejant els registres...")
     dades_netes = []
     
     for item in dades_brutes:
@@ -179,8 +225,11 @@ def transformar_dades(dades_brutes):
                 "id_arqueo": arqueo,
                 "url_oficial_gencat": url_gencat,
                 "imatge_url": item.get("imatge", {}).get("value", ""),
-                "web_oficial": None, # Forcem a None doncs ja no ho extraiem de SPARQL
-                "wikipedia_url": None, # Forcem a None
+                
+                # NOVES LÍNIES PER A L'UX DEL VISOR:
+                "google_maps_url": f"https://www.google.com/maps/search/?api=1&query={lat},{lon}",
+                "wikipedia_url": item.get("wikipedia_link", {}).get("value", None),
+                
                 "lat": lat,
                 "lon": lon
             }
@@ -205,10 +254,10 @@ def carregar_a_postgis(dades_netes):
     
     sql_upsert = """
         INSERT INTO ide_cultural.patrimoni_monumental 
-        (id_wikidata, nom, descripcio, categoria, estil, proteccio, id_ipac, id_arqueo, url_oficial_gencat, imatge_url, web_oficial, wikipedia_url, lat, lon, geometry)
+        (id_wikidata, nom, descripcio, categoria, estil, proteccio, id_ipac, id_arqueo, url_oficial_gencat, imatge_url, google_maps_url, wikipedia_url, lat, lon, geometry)
         VALUES 
-        (%(id_wikidata)s, %(nom)s, %(descripcio)s, %(categoria)s, %(estil)s, %(proteccio)s, %(id_ipac)s, %(id_arqueo)s, %(url_oficial_gencat)s, %(imatge_url)s, %(web_oficial)s, %(wikipedia_url)s, %(lat)s, %(lon)s, 
-         ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), 4326))
+        (%(id_wikidata)s, %(nom)s, %(descripcio)s, %(categoria)s, %(estil)s, %(proteccio)s, %(id_ipac)s, %(id_arqueo)s, %(url_oficial_gencat)s, %(imatge_url)s, %(google_maps_url)s, %(wikipedia_url)s, %(lat)s, %(lon)s, 
+        ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), 4326))
         ON CONFLICT (id_wikidata) 
         DO UPDATE SET 
             nom = EXCLUDED.nom,
@@ -220,6 +269,8 @@ def carregar_a_postgis(dades_netes):
             id_arqueo = EXCLUDED.id_arqueo,
             url_oficial_gencat = EXCLUDED.url_oficial_gencat,
             imatge_url = EXCLUDED.imatge_url,
+            google_maps_url = EXCLUDED.google_maps_url,
+            wikipedia_url = EXCLUDED.wikipedia_url,
             lat = EXCLUDED.lat,
             lon = EXCLUDED.lon,
             geometry = EXCLUDED.geometry;
@@ -232,7 +283,7 @@ def carregar_a_postgis(dades_netes):
         cursor = conn.cursor()
         execute_batch(cursor, sql_upsert, dades_netes)
         conn.commit()
-        log(f"🏆 ÈXIT: Taula 'patrimoni_monumental' actualitzada amb {len(dades_netes)} punts!")
+        log(f"🏆 ÈXIT FINAL: Base de dades PostGIS actualitzada amb {len(dades_netes)} punts!")
     except psycopg2.Error as e:
         log(f"❌ Error guardant a PostgreSQL: {e}")
         if conn: conn.rollback()
@@ -245,11 +296,12 @@ def carregar_a_postgis(dades_netes):
 # ==========================================
 if __name__ == "__main__":
     print("\n" + "═"*55)
-    print(" 🏛️ PIPELINE ETL: PATRIMONI ESTÀTIC (WIKIDATA V3)")
+    print(" 🏛️ PIPELINE ETL: PATRIMONI ESTÀTIC (RADAR V5)")
     print("═"*55)
     
     preparar_base_de_dades()
-    dades_api = extreure_dades_wikidata()
+    centres = obtenir_centres_radar()
+    dades_api = escombrada_radar(centres)
     dades_processades = transformar_dades(dades_api)
     carregar_a_postgis(dades_processades)
     
