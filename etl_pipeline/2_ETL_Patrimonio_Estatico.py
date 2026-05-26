@@ -7,9 +7,7 @@ from datetime import datetime
 import concurrent.futures
 import threading
 
-# ==========================================
-# ⚙️ 1. CONFIGURACIÓ DE L'ENTORN
-# ==========================================
+# 1. Configuración del entorno
 DB_CONFIG = {
     "dbname": "events_db",
     "user": "postgres",
@@ -29,17 +27,13 @@ def log(missatge):
     print(f"[{temps}] {missatge}")
     sys.stdout.flush()
 
-# ==========================================
-# 🏗️ 2. APROVISIONAMENT (DDL)
-# ==========================================
+# Preparamos base de datos (esquema y tabla)
 def preparar_base_de_dades():
     log("Verificant l'estructura a PostGIS per al Patrimoni Estàtic...")
     sql_setup = """
         CREATE SCHEMA IF NOT EXISTS ide_cultural;
-        
-        DROP TABLE IF EXISTS ide_cultural.patrimoni_monumental;
 
-        CREATE TABLE ide_cultural.patrimoni_monumental (
+        CREATE TABLE IF NOT EXISTS ide_cultural.patrimoni_monumental (
             id_wikidata VARCHAR PRIMARY KEY,
             nom VARCHAR(512),
             descripcio TEXT,
@@ -72,18 +66,16 @@ def preparar_base_de_dades():
         if 'cursor' in locals() and cursor is not None: cursor.close()
         if 'conn' in locals() and conn is not None: conn.close()
 
-# ==========================================
-# 📍 3A. OBTENIR CENTRES DEL RADAR (Coordenades Municipals)
-# ==========================================
+# 3. Obtener los centros de los municipios para el radar y extraemos los monumentos cercanos con consultas SPARQL multihilo
 def obtenir_centres_radar():
     log("Extreient la xarxa de coordenades per al radar (Sense noms per màxima velocitat)...")
     
-    # Consulta ultra-lleugera: només volem els punts matemàtics dels 947 municipis
+    # Consulta super rapida para obtener únicamente la coordenada de cada municipi de Catalunya
     query = """
     SELECT DISTINCT ?coords WHERE {
-      ?muni wdt:P31 wd:Q33146843.
-      ?muni wdt:P131* wd:Q5705.
-      ?muni wdt:P625 ?coords.
+        ?muni wdt:P31 wd:Q33146843.
+        ?muni wdt:P131* wd:Q5705.
+        ?muni wdt:P625 ?coords.
     }
     """
     try:
@@ -103,11 +95,7 @@ def obtenir_centres_radar():
     except Exception as e:
         log(f"❌ Error obtenint els centres del radar: {e}")
         sys.exit(1)
-
-# ==========================================
-# 📡 3B. EXTRACT (Escombrada de Radar 16km)
-# ==========================================
-
+# Extraemos los monumentos con los centros obtenidos
 def processar_node(centre, index, total_centres, monuments_dict, dict_lock):
     """Funció que executarà cada fil (thread) de forma independent."""
     lat = centre['lat']
@@ -149,6 +137,7 @@ def processar_node(centre, index, total_centres, monuments_dict, dict_lock):
         res = requests.get(WIKIDATA_ENDPOINT, params={'query': query}, headers=HEADERS, timeout=20)
         if res.status_code == 200:
             resultats = res.json()['results']['bindings']
+            
             
             # Bloquegem el diccionari un microsegon per evitar que dos fils escriguin alhora
             with dict_lock:
@@ -296,7 +285,7 @@ def carregar_a_postgis(dades_netes):
 # ==========================================
 if __name__ == "__main__":
     print("\n" + "═"*55)
-    print(" 🏛️ PIPELINE ETL: PATRIMONI ESTÀTIC (RADAR V5)")
+    print(" 🏛️ PIPELINE ETL: PATRIMONI ESTÀTIC")
     print("═"*55)
     
     preparar_base_de_dades()
