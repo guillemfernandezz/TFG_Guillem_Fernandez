@@ -1,0 +1,811 @@
+/* =============================================================================
+   1. VARIABLES DE DISSENY (THEME: Deep Space & Electric Blue)
+   ============================================================================= */
+:root {
+    /* Paleta: Satèl·lit Clar — optimitzada per a mapes reals i llum ambient */
+    --bg-dark: #EDE8E0;
+    --glass-heavy: rgba(250, 247, 242, 0.96);
+    --glass-ui: rgba(255, 252, 248, 0.95);
+
+    --primary: #A85C08;                          /* Àmbar fosc — llegible sobre blanc */
+    --primary-glow: rgba(168, 92, 8, 0.35);
+    --accent: #B83210;                           /* Terracota fosca */
+    --festa-color: #5B2DAB;                      /* Violeta fosc — Agenda */
+    --festa-glow: rgba(91, 45, 171, 0.35);
+    --danger: #dc2626;
+    --success: #15803d;
+
+    --text-main: #1A0E04;                        /* Quasi-negre càlid */
+    --text-muted: #6B4E30;                       /* Marró mig */
+    --border-glass: rgba(0, 0, 0, 0.09);
+}
+
+/* =============================================================================
+   2. RESET I TIPOGRAFIA GLOBAL
+   ============================================================================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.hidden { display: none !important; }
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar, body::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track, body::-webkit-scrollbar-track { background: var(--bg-dark); }
+.custom-scrollbar::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* Barra de Progrés Superior */
+#reading-progress { position: fixed; top: 0; left: 0; width: 100vw; height: 4px; background: rgba(255, 255, 255, 0.05); z-index: 9999; }
+#progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent)); box-shadow: 0 0 10px var(--primary-glow); }
+
+/* =============================================================================
+   3. EL MAPA LEAFLET
+   ============================================================================= */
+#map {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 1; 
+    background: var(--bg-dark); 
+}
+
+/* Transició de visibilitat del Zoom de Leaflet */
+.leaflet-control-container { opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
+#ui-explorer:not(.hidden) ~ .leaflet-control-container { opacity: 1; pointer-events: auto; }
+.leaflet-bottom.leaflet-left { bottom: 30px; left: 390px; }
+
+/* =============================================================================
+   4. NARRATIVA SCROLLYTELLING (FIX: Textos i punts fantasma eliminats)
+   ============================================================================= */
+#story { position: relative; z-index: 10; width: 100%; padding-bottom: 50vh; pointer-events: none; }
+
+.step {
+    min-height: 110vh; 
+    display: flex; 
+    align-items: center; 
+    padding: 0 8%;
+    
+    /* FIX CRÍTIC: Bloquegem completament l'element si no és actiu */
+    opacity: 0; 
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(40px);
+    
+    transition: opacity 0.6s ease-in-out, transform 0.6s ease-in-out, visibility 0.6s;
+}
+
+/* S'activa quirúrgicament només quan té la classe .active de l'Observer */
+.step.active { 
+    opacity: 1; 
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0); 
+}
+
+.text-center { justify-content: center; text-align: center; }
+.align-left { justify-content: flex-start; }
+.align-right { justify-content: flex-end; }
+
+/* =============================================================================
+   5. DISSENY DE TARGETES
+   ============================================================================= */
+.card { width: 100%; max-width: 580px; padding: 3.5rem; border-radius: 24px; pointer-events: auto; }
+.glass-dark {
+    background: var(--glass-heavy); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glass); box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8);
+}
+
+.split-card { max-width: 900px; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+
+.title-hero { font-size: 4.5rem; font-weight: 800; letter-spacing: -2px; line-height: 1.1; margin-bottom: 1rem; }
+.subtitle-hero { font-size: 1.5rem; color: var(--accent); margin-bottom: 2.5rem; }
+.chapter-label { font-size: 0.85rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--primary); margin-bottom: 1rem; }
+.card h2 { font-size: 2.5rem; font-weight: 700; margin-bottom: 1.5rem; line-height: 1.2; }
+.card p { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.7; }
+
+.editorial-text p { font-family: 'Lora', serif; font-size: 1.2rem; line-height: 1.8; color: var(--text-muted); }
+
+.intro-card { max-width: 800px; position: relative; }
+.glow-circle { position: absolute; top: -50%; left: 50%; transform: translateX(-50%); width: 300px; height: 300px; background: var(--primary); filter: blur(100px); opacity: 0.15; border-radius: 50%; z-index: -1; }
+
+/* =============================================================================
+   6. IMATGES, ESTADÍSTIQUES I ANIMACIONS
+   ============================================================================= */
+.image-gallery { margin: 2rem 0; }
+.story-img { width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--border-glass); transition: 0.5s; }
+.story-img:hover { transform: scale(1.02); }
+.image-caption { font-family: 'Lora', serif; font-style: italic; font-size: 0.9rem; color: var(--text-muted); padding: 0.8rem 0 0 1rem; border-left: 3px solid var(--primary); margin-top: 0.5rem; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; }
+.stat-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); border-radius: 12px; padding: 1.5rem 1rem; text-align: center; }
+.stat-box i { font-size: 1.8rem; color: var(--accent); margin-bottom: 0.5rem; }
+.stat-num { display: block; font-size: 1.8rem; font-weight: 700; color: white; margin-bottom: 4px; }
+.stat-desc { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+.pulse-blue { animation: pulse-blue 2s infinite; }
+@keyframes pulse-blue { 0%, 100% { filter: drop-shadow(0 0 5px var(--primary)); } 50% { filter: drop-shadow(0 0 25px var(--primary)); } }
+
+.scroll-prompt { margin-top: 4rem; display: flex; flex-direction: column; align-items: center; gap: 15px; opacity: 0.7; }
+.prompt-text { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); }
+.mouse-icon { width: 24px; height: 38px; border: 2px solid var(--text-muted); border-radius: 15px; position: relative; }
+.wheel { width: 4px; height: 6px; background: var(--primary); border-radius: 2px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); animation: scroll-anim 2s infinite; }
+@keyframes scroll-anim { 0% { top: 8px; opacity: 1; } 100% { top: 20px; opacity: 0; } }
+
+.transparent-trigger { background: transparent; border: none; box-shadow: none; backdrop-filter: none; }
+.end-journey h2 { font-size: 3.5rem; text-shadow: 0 10px 20px rgba(0,0,0,0.8); }
+.loading-dots span { display: inline-block; width: 8px; height: 8px; background: var(--primary); border-radius: 50%; margin: 0 4px; animation: bounce 1.4s infinite ease-in-out both; }
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+/* =============================================================================
+   7. INTERFÍCIE DEL DASHBOARD (L'Explorador)
+   ============================================================================= */
+#ui-explorer { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 100; pointer-events: none; }
+.dashboard-panel { pointer-events: auto; }
+
+.glass-ui { background: var(--glass-ui); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border-glass); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+
+/* Panell Esquerre */
+#sidebar-left { position: absolute; top: 20px; left: 20px; width: 360px; height: calc(100vh - 40px); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border-glass); background: rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: space-between; }
+.logo-mini { font-size: 1.5rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 10px; }
+.logo-mini i { color: var(--primary); }
+.sidebar-body { padding: 2rem; overflow-y: auto; flex-grow: 1; }
+
+/* Botons de la UI */
+.btn-action { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; font-size: 1rem; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); margin-bottom: 1.5rem; padding: 14px; border-radius: 10px; border: none; width: 100%; cursor: pointer; font-weight: 600; transition: 0.2s; }
+.btn-action:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5); }
+/* .btn-execute definit a la secció 11 */
+.btn-execute:hover { background: var(--accent); }
+
+.filter-section { margin-bottom: 1.5rem; }
+.filter-section h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 0.8rem; border-left: 3px solid var(--primary); padding-left: 8px; }
+
+.input-group { position: relative; }
+.input-group input, .input-group select { width: 100%; padding: 14px 14px 14px 45px; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--border-glass); border-radius: 10px; color: white; font-family: inherit; font-size: 0.95rem; appearance: none; outline: none; transition: 0.3s; }
+.input-group input[type="date"] { padding-left: 14px; }
+.input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+.select-icon { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;}
+.input-group input:focus, .input-group select:focus { border-color: var(--primary); background: rgba(0, 0, 0, 0.7); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+.status-text { text-align: center; font-size: 0.9rem; font-weight: 500; margin-top: 10px; }
+
+/* =============================================================================
+   8. PANELL DRET I RADAR
+   ============================================================================= */
+.radar-bar-integrated {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    padding: 12px 28px; border-radius: 30px; display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: 0.3s; pointer-events: auto; font-weight: 600; color: var(--text-main); z-index: 200;
+    background: var(--glass-ui); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    border: 1.5px solid rgba(168,92,8,0.3); box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+.radar-bar-integrated:hover {
+    background: rgba(59, 130, 246, 0.2); border-color: var(--primary);
+    transform: translateX(-50%) translateY(-3px); box-shadow: 0 10px 25px var(--primary-glow);
+}
+.radar-bar-icon { color: var(--accent); font-size: 1.3rem; }
+
+#sidebar-right { position: absolute; top: 50%; right: 20px; transform: translateY(-50%); width: 340px; height: 75vh; border-radius: 20px; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; }
+#sidebar-right.collapsed { right: -360px; }
+
+.toggle-tab { position: absolute; left: -40px; top: 50%; transform: translateY(-50%); width: 40px; height: 100px; background: var(--primary); border-radius: 12px 0 0 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+.vertical-text { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 0.85rem; font-weight: 700; letter-spacing: 3px; color: white; }
+
+.right-panel-content { padding: 2rem; width: 100%; display: flex; flex-direction: column; }
+.radar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;}
+.radar-header h3 { color: white; font-size: 1.4rem; }
+.radar-ping { width: 12px; height: 12px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success); animation: ping 2s infinite; }
+@keyframes ping { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+
+.llista-esdeveniments { overflow-y: auto; margin-top: 1.5rem; flex-grow: 1; padding-right: 10px;}
+.empty-state { text-align: center; color: var(--text-muted); margin-top: 3rem; }
+.empty-state i { font-size: 2.2rem; margin-bottom: 1rem; opacity: 0.5; }
+
+.radar-item { padding: 15px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.3s; border-radius: 8px; }
+.radar-item:hover { background: rgba(59, 130, 246, 0.1); transform: translateX(5px); }
+
+/* =============================================================================
+   9. HACKEJANT LEAFLET (FIX: Desplaçament al fer zoom eliminat)
+   ============================================================================= */
+.marker-pin {
+    width: 16px; 
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 8px rgba(0,0,0,0.8);
+    /* Hem extirpat la posició absoluta i transformació per fixar els punts exactament a les seves coordenades */
+}
+
+.pin-agenda { animation: pulse-agenda 2s infinite; }
+@keyframes pulse-agenda { 
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 
+    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } 
+}
+
+/* Clústers */
+.marker-cluster-small { background-color: rgba(59, 130, 246, 0.4) !important; }
+.marker-cluster-small div { background-color: rgba(59, 130, 246, 0.8) !important; color: white !important; font-weight: 600;}
+.marker-cluster-medium { background-color: rgba(245, 158, 11, 0.4) !important; }
+.marker-cluster-medium div { background-color: rgba(245, 158, 11, 0.8) !important; color: white !important; font-weight: 600;}
+.marker-cluster-large { background-color: rgba(239, 68, 68, 0.4) !important; }
+.marker-cluster-large div { background-color: rgba(239, 68, 68, 0.8) !important; color: white !important; font-weight: 600;}
+
+/* Popups */
+.leaflet-popup-content-wrapper { background: var(--glass-ui) !important; backdrop-filter: blur(10px); border: 1px solid var(--border-glass); border-radius: 14px !important; color: white !important; box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important; }
+.leaflet-popup-tip { background: var(--glass-ui) !important; border: 1px solid var(--border-glass); border-top: none; border-left: none; }
+.leaflet-popup-close-button { color: var(--text-muted) !important; font-size: 1.2rem !important; }
+
+/* Disseny Popup */
+.custom-popup h3 { color: #ffffff; margin: 0 0 10px 0; font-family: 'Poppins'; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; font-weight: 600;}
+.custom-popup .popup-info { background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.85rem; color: #cbd5e1; line-height: 1.4; }
+.custom-popup .popup-info p { margin: 4px 0; font-family: 'Poppins'; }
+.btn-popup { display: block; text-align: center; background: var(--success); color: white !important; text-decoration: none; padding: 10px; border-radius: 8px; font-weight: 600; transition: 0.2s; font-family: 'Poppins'; font-size: 0.85rem; }
+.btn-popup:hover { background: #059669; transform: translateY(-1px); }
+
+/* =============================================================================
+   10. MEDIA QUERIES (Mòbils)
+   ============================================================================= */
+/* =============================================================================
+   11. NOUS ELEMENTS UI
+   ============================================================================= */
+
+/* Botó tornar a la narrativa */
+.sidebar-header { justify-content: space-between; }
+.btn-back {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border-glass);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+.btn-back:hover { background: rgba(255,255,255,0.12); color: white; }
+
+/* Barra de càrrega */
+.loading-bar {
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
+    background-size: 200% 100%;
+    animation: loading-slide 1.2s linear infinite;
+}
+.loading-bar.hidden { display: none; }
+@keyframes loading-slide { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+/* Toggles de capa amb comptadors */
+.layer-toggles { display: flex; flex-direction: column; gap: 10px; }
+.layer-label {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; font-size: 0.95rem;
+}
+.layer-label input { flex-shrink: 0; }
+.layer-label > span:nth-child(2) { flex: 1; }
+.layer-count {
+    font-size: 0.75rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px;
+    min-width: 36px; text-align: center;
+}
+.count-patrimoni { background: rgba(200,131,14,0.18); color: var(--primary);     border: 1px solid rgba(200,131,14,0.35); }
+.count-agenda    { background: rgba(139,92,246,0.18); color: var(--festa-color); border: 1px solid rgba(139,92,246,0.35); }
+
+/* Selector de capa base */
+.basemap-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.basemap-btn {
+    background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass);
+    border-radius: 10px; padding: 8px 4px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    transition: 0.2s; color: var(--text-muted); font-size: 0.72rem;
+    font-family: inherit; font-weight: 500;
+}
+.basemap-btn:hover { border-color: var(--primary); color: white; }
+.basemap-btn.active { border-color: var(--primary); color: white; background: rgba(59,130,246,0.15); }
+.basemap-swatch {
+    width: 100%; height: 32px; border-radius: 6px;
+}
+.swatch-dark       { background: linear-gradient(135deg, #0a0f1e 0%, #1a2744 100%); }
+.swatch-satellite  { background: linear-gradient(135deg, #1a3a1a 0%, #2d6b2d 50%, #8B7355 100%); }
+.swatch-topo       { background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 50%, #81c784 100%); }
+.swatch-light      { background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%); }
+
+/* Fila de botons d'acció */
+.btn-row { display: flex; gap: 8px; margin-top: 1rem; }
+.btn-execute { flex: 1; background: var(--primary); color: white; padding: 12px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit; font-size: 0.9rem; }
+.btn-execute:hover { background: var(--accent); }
+.btn-reset { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 12px 16px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 0.9rem; }
+.btn-reset:hover { background: rgba(239,68,68,0.25); }
+
+/* Clusters personalitzats */
+.custom-cluster {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem; color: white;
+    border: 2px solid rgba(255,255,255,0.3);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.cluster-patrimoni { background: radial-gradient(circle, rgba(200,131,14,0.92) 0%, rgba(155,95,5,0.92) 100%); }
+.cluster-agenda    { background: radial-gradient(circle, rgba(139,92,246,0.92) 0%, rgba(100,60,200,0.92) 100%); }
+
+/* Popup amb imatge */
+.popup-img {
+    width: calc(100% + 32px);
+    max-height: 160px;
+    object-fit: cover;
+    border-radius: 10px 10px 0 0;
+    margin: -13px -16px 12px -16px;
+    display: block;
+}
+.popup-desc {
+    font-style: italic;
+    margin-top: 8px !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.popup-actions { display: flex; gap: 6px; margin-top: 8px; }
+.popup-actions .btn-popup { flex: 1; }
+.btn-popup-secondary { background: #334155 !important; }
+.btn-popup-secondary:hover { background: #475569 !important; }
+
+/* Badge gratuït */
+.badge-gratuit {
+    display: inline-block; font-size: 0.65rem; font-weight: 700;
+    background: rgba(16,185,129,0.2); color: #10b981;
+    border: 1px solid rgba(16,185,129,0.4);
+    padding: 1px 6px; border-radius: 4px;
+    vertical-align: middle; margin-left: 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Radar items millorats */
+.radar-item-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; color: white; }
+.radar-item-meta { display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; }
+.radar-dist { font-weight: 500; }
+
+/* =============================================================================
+   12. NOUS COMPONENTS: EMOJI MARKERS, ZOOM OVERLAY, WELCOME MODAL, CHIP AVUI
+   ============================================================================= */
+
+/* Emoji markers */
+.emoji-pin {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; line-height: 1;
+    background: rgba(14, 8, 2, 0.82);
+    border: 2px solid rgba(200,131,14,0.45);
+    border-radius: 50%;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.65), 0 0 0 0 rgba(200,131,14,0);
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+}
+.emoji-agenda .emoji-pin {
+    border-color: rgba(139,92,246,0.5);
+    background: rgba(10, 4, 20, 0.82);
+}
+
+/* Zoom overlay */
+.zoom-overlay {
+    position: absolute;
+    bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,12,4,0.88);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(200,131,14,0.35);
+    border-radius: 20px;
+    padding: 12px 24px;
+    color: var(--primary);
+    font-size: 0.82rem; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+    pointer-events: none; z-index: 200;
+    white-space: nowrap;
+}
+
+/* Welcome modal */
+#welcome-modal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.78);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+}
+.welcome-card {
+    background: var(--glass-ui);
+    border: 1px solid var(--border-glass);
+    border-top: 3px solid var(--primary);
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 450px; width: 100%;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.85);
+    animation: modal-appear 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes modal-appear {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.welcome-icon-row { font-size: 2.2rem; color: var(--primary); margin-bottom: 1rem; filter: drop-shadow(0 0 16px var(--primary-glow)); }
+.welcome-card h2 { font-size: 1.6rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.35rem; }
+.welcome-subtitle { color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-bottom: 1.5rem; }
+.guide-list { display: flex; flex-direction: column; gap: 2px; }
+.guide-item {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 9px 10px; border-radius: 10px; transition: background 0.15s;
+}
+.guide-item:hover { background: rgba(255,255,255,0.03); }
+.guide-emoji { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+.guide-item strong { display: block; color: var(--text-main); font-size: 0.85rem; margin-bottom: 2px; }
+.guide-item span { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; }
+.btn-welcome {
+    width: 100%; margin-top: 1.5rem;
+    background: var(--primary); color: #080604;
+    border: none; border-radius: 12px;
+    padding: 13px; font-size: 0.9rem; font-weight: 800;
+    font-family: inherit; cursor: pointer; transition: 0.2s;
+    letter-spacing: 0.3px;
+}
+.btn-welcome:hover { background: var(--accent); color: white; }
+.welcome-no-show {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 1rem; font-size: 0.78rem;
+    color: var(--text-muted); cursor: pointer;
+}
+
+/* Chip "Avui" integrat a la capçalera del filtre de data */
+.filter-header-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.8rem;
+}
+.filter-header-row h4 { margin-bottom: 0; border-left: 3px solid var(--primary); padding-left: 8px; }
+.chip-avui {
+    background: rgba(200,131,14,0.12);
+    border: 1px solid rgba(200,131,14,0.35);
+    color: var(--primary);
+    font-size: 0.71rem; font-weight: 700; font-family: inherit;
+    padding: 4px 10px; border-radius: 20px;
+    cursor: pointer; transition: 0.2s; white-space: nowrap;
+}
+.chip-avui:hover { background: rgba(200,131,14,0.28); transform: scale(1.04); }
+
+/* Popup: placeholder d'imatge per events sense foto */
+.popup-img-placeholder {
+    width: calc(100% + 32px);
+    height: 100px;
+    background: linear-gradient(135deg, rgba(139,92,246,0.18) 0%, rgba(100,58,180,0.08) 100%);
+    border-radius: 10px 10px 0 0;
+    margin: -13px -16px 12px -16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+}
+.placeholder-emoji { font-size: 2rem; }
+.placeholder-cat {
+    font-size: 0.68rem; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;
+}
+
+/* Popup: tag de protecció */
+.popup-tag {
+    display: inline-block; font-size: 0.68rem; font-weight: 600;
+    background: rgba(200,131,14,0.15); color: var(--primary);
+    border: 1px solid rgba(200,131,14,0.3);
+    padding: 2px 7px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;
+}
+
+/* Radar: emoji i tipus */
+.radar-emoji { margin-right: 5px; }
+.radar-type { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Títol hero: gradient càlid */
+.title-hero {
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    background-clip: unset !important;
+    -webkit-text-fill-color: unset !important;
+    color: var(--text-main) !important;
+    text-shadow: none;
+    filter: none;
+}
+.title-hero::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 2px;
+    margin: 0.8rem auto 0;
+}
+
+/* =============================================================================
+   OVERRIDES PALETA CLARA: corregeix tots els color:white hardcoded
+   ============================================================================= */
+.logo-mini { color: var(--text-main) !important; }
+.radar-header h3 { color: var(--text-main); }
+.radar-item-title { color: var(--text-main); }
+.stat-num { color: var(--text-main); }
+.leaflet-popup-content-wrapper { color: var(--text-main) !important; }
+.custom-popup h3 { color: var(--text-main); }
+.custom-popup .popup-info { color: var(--text-muted); }
+.custom-popup .popup-info strong { color: var(--text-main); }
+.btn-back:hover { color: var(--primary) !important; background: rgba(168,92,8,0.1) !important; }
+.align-left, .align-right { justify-content: center; }   /* centrar totes les seccions */
+.input-group input, .input-group select {
+    background: rgba(255,255,255,0.75) !important;
+    color: var(--text-main) !important;
+    border-color: rgba(0,0,0,0.12) !important;
+}
+.input-group input:focus, .input-group select:focus {
+    background: rgba(255,255,255,0.97) !important;
+    color: var(--text-main) !important;
+    box-shadow: 0 0 0 3px rgba(168,92,8,0.18) !important;
+}
+.input-group input::placeholder { color: var(--text-muted); opacity: 0.8; }
+.card.glass-dark { border-top: 3px solid var(--primary); }
+.leaflet-popup-tip { background: var(--glass-ui) !important; }
+.status-text { color: var(--text-muted); }
+.empty-state { color: var(--text-muted) !important; }
+
+/* Sidebar header sobre fons clar */
+.sidebar-header { background: rgba(240,236,228,0.5) !important; }
+.filter-section h4 { color: var(--text-muted) !important; }
+.radar-item-meta { color: var(--text-muted) !important; }
+
+/* =============================================================================
+   BASEMAP WIDGET (estil Google Maps, flotant sobre el mapa)
+   ============================================================================= */
+.basemap-widget {
+    position: absolute;
+    bottom: 100px; right: 20px;
+    z-index: 200;
+}
+.basemap-main-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: rgba(250,247,242,0.96);
+    border: 2px solid rgba(0,0,0,0.22);
+    border-radius: 8px; padding: 4px;
+    cursor: pointer; font-family: inherit;
+    font-size: 0.62rem; font-weight: 700;
+    color: var(--text-main);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.28);
+    transition: 0.2s; width: 68px; text-align: center;
+}
+.basemap-main-btn:hover { border-color: var(--primary); }
+.bm-thumb {
+    width: 60px; height: 44px;
+    border-radius: 4px; overflow: hidden;
+}
+.bm-thumb.swatch-satellite  { background: linear-gradient(135deg, #2d5a27 0%, #4a7c3f 35%, #6b9e5e 60%, #8B7355 100%); }
+.bm-thumb.swatch-dark       { background: linear-gradient(135deg, #0a0f1e 0%, #1a2744 100%); }
+.bm-thumb.swatch-topo       { background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 50%, #81c784 100%); }
+.bm-thumb.swatch-light      { background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%); }
+.bm-panel {
+    position: absolute;
+    bottom: calc(100% + 8px); right: 0;
+    background: rgba(250,247,242,0.98);
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 12px; padding: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.25);
+    min-width: 152px;
+    animation: panel-appear 0.2s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes panel-appear {
+    from { opacity: 0; transform: translateY(6px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+}
+.bm-opt {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: 2px solid transparent;
+    border-radius: 8px; padding: 5px 4px;
+    cursor: pointer; font-family: inherit;
+    font-size: 0.65rem; font-weight: 700;
+    color: var(--text-main); transition: 0.15s;
+}
+.bm-opt:hover { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); }
+.bm-opt.active { border-color: var(--primary); background: rgba(168,92,8,0.08); }
+.bm-opt .bm-thumb { width: 54px; height: 40px; }
+
+/* =============================================================================
+   BOTÓ SALTAR INTRO
+   ============================================================================= */
+.btn-saltar-intro {
+    position: fixed;
+    top: 16px; right: 16px; z-index: 500;
+    background: rgba(168,92,8,0.88);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: #fff; border: none; border-radius: 20px;
+    padding: 9px 20px; font-size: 0.82rem; font-weight: 700;
+    font-family: inherit; cursor: pointer; transition: 0.2s;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.22);
+    display: flex; align-items: center; gap: 7px;
+}
+.btn-saltar-intro:hover { background: rgba(168,92,8,1); transform: scale(1.04); }
+
+/* =============================================================================
+   DESCRIPCIONS EXPANDIBLES
+   ============================================================================= */
+.popup-desc { font-style: italic; margin-top: 6px !important; line-height: 1.5; }
+.btn-desc-toggle {
+    display: inline-block; margin-top: 4px;
+    background: none; border: none;
+    color: var(--primary); font-size: 0.75rem;
+    font-weight: 700; font-family: inherit;
+    cursor: pointer; padding: 0; text-decoration: underline;
+    transition: color 0.15s;
+}
+.btn-desc-toggle:hover { color: var(--accent); }
+
+/* =============================================================================
+   MILLORES NARRATIVA — Cards centrades i professionals
+   ============================================================================= */
+.step { justify-content: center !important; } /* Centra totes les seccions */
+.card.glass-dark {
+    box-shadow: 0 20px 50px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06) !important;
+}
+.intro-card {
+    border-top-color: transparent !important; /* La card d'intro no necessita la línia */
+}
+.editorial-text p { color: var(--text-muted) !important; }
+.subtitle-hero { color: var(--primary) !important; }
+/* Llegibilitat del títol inicial independent de la capa base */
+.title-hero {
+    text-shadow: none;
+    filter: drop-shadow(0 2px 16px rgba(168,92,8,0.15));
+}
+/* Assegura que el card intro mai perdi contrast */
+.intro-card.glass-dark {
+    background: rgba(250,247,242,0.98) !important;
+}
+
+/* =============================================================================
+   13. MEDIA QUERIES (Mòbils)
+   ============================================================================= */
+@media (max-width: 768px) {
+    .split-card { grid-template-columns: 1fr; gap: 1.5rem; }
+    .title-hero { font-size: 2.8rem !important; padding: 0.5rem 1.4rem !important; }
+    #sidebar-left { width: calc(100% - 40px); height: auto; max-height: 40vh; top: auto; bottom: 20px; left: 20px; }
+    #sidebar-right { width: calc(100% - 40px); height: 45vh; top: auto; bottom: 90px; right: 20px; transform: none; }
+    #sidebar-right.collapsed { transform: translateY(150%); right: 20px; }
+    .toggle-tab { top: -40px; left: 50%; transform: translateX(-50%); width: 100px; height: 40px; border-radius: 12px 12px 0 0; }
+    .vertical-text { writing-mode: horizontal-tb; transform: none; }
+}
+
+/* =============================================================================
+   14. INTRO HERO — TÍTOL I SUBTÍTOL AMB PILLS FLOTANTS
+   ============================================================================= */
+/* El .intro-card NO té classe .glass-dark, és transparent per defecte.
+   Les pills donen llegibilitat flotant directament sobre el mapa satèl·lit. */
+.title-hero {
+    display: inline-block !important;
+    /* Cancel·la el gradient text trick i usa color sòlid */
+    background: rgba(250, 247, 242, 0.92) !important;
+    background-clip: unset !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+    color: var(--text-main) !important;
+    filter: none !important;
+    text-shadow: none !important;
+    /* Pill */
+    padding: 0.65rem 2.4rem !important;
+    border-radius: 22px !important;
+    border: 1.5px solid rgba(168, 92, 8, 0.18) !important;
+    border-top: 3px solid var(--primary) !important;
+    box-shadow: 0 6px 28px rgba(0,0,0,0.18), 0 0 40px rgba(168,92,8,0.1) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    letter-spacing: -1.5px;
+}
+.subtitle-hero {
+    display: inline-block !important;
+    /* Pill ambre ple — contrasta sobre qualsevol mapa */
+    background: rgba(168, 92, 8, 0.88) !important;
+    padding: 0.45rem 1.6rem !important;
+    border-radius: 20px !important;
+    border: none !important;
+    color: #fff !important;
+    font-style: italic;
+    font-weight: 600 !important;
+    letter-spacing: 0.1px;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 3px 14px rgba(168, 92, 8, 0.35) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+}
+.intro-card .editorial-text {
+    background: rgba(250, 247, 242, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-left: 3px solid rgba(168, 92, 8, 0.55);
+    border-radius: 0 12px 12px 0;
+    padding: 1rem 1.5rem;
+    text-align: left;
+    margin-bottom: 0 !important;
+}
+.intro-card .scroll-prompt {
+    background: rgba(250, 247, 242, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 14px;
+    padding: 0.9rem 1.4rem;
+    margin-top: 2rem;
+}
+
+/* =============================================================================
+   15. BOTÓ SORPRÈN-ME
+   ============================================================================= */
+.btn-sorpren-sidebar {
+    width: 100%;
+    background: rgba(91, 45, 171, 0.09);
+    color: var(--festa-color);
+    border: 1px solid rgba(91, 45, 171, 0.28);
+    border-radius: 10px;
+    padding: 11px;
+    font-family: inherit; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; transition: 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 8px; letter-spacing: 0.3px;
+}
+.btn-sorpren-sidebar:hover {
+    background: rgba(91, 45, 171, 0.2);
+    border-color: var(--festa-color);
+    transform: scale(1.01);
+    box-shadow: 0 2px 12px rgba(91, 45, 171, 0.2);
+}
+
+/* =============================================================================
+   16. RUTA CULTURAL
+   ============================================================================= */
+.ruta-btn {
+    width: 100%;
+    background: rgba(91, 45, 171, 0.09);
+    color: var(--festa-color);
+    border: 1px solid rgba(91, 45, 171, 0.28);
+    border-radius: 10px;
+    padding: 10px;
+    font-family: inherit; font-weight: 700; font-size: 0.82rem;
+    cursor: pointer; transition: 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 10px; letter-spacing: 0.2px; flex-shrink: 0;
+}
+.ruta-btn:hover { background: rgba(91, 45, 171, 0.2); border-color: var(--festa-color); }
+.ruta-btn.clear {
+    background: rgba(239, 68, 68, 0.08);
+    color: #dc2626;
+    border-color: rgba(239, 68, 68, 0.25);
+    margin-top: 6px;
+}
+.ruta-btn.clear:hover { background: rgba(239, 68, 68, 0.18); }
+
+.ruta-stop {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 8px; border-radius: 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    cursor: pointer; transition: 0.2s;
+}
+.ruta-stop:hover { background: rgba(91, 45, 171, 0.07); transform: translateX(3px); }
+.ruta-stop-num {
+    width: 22px; height: 22px; flex-shrink: 0;
+    background: var(--festa-color); color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.68rem; font-weight: 800; margin-top: 1px;
+}
+.ruta-stop-title { font-weight: 600; font-size: 0.87rem; color: var(--text-main); line-height: 1.3; }
+.ruta-stop-km { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; }
+.ruta-total {
+    margin-top: 10px; padding: 8px 12px;
+    background: rgba(91, 45, 171, 0.08);
+    border-radius: 8px; text-align: center;
+    font-size: 0.8rem; font-weight: 700; color: var(--festa-color);
+    border: 1px solid rgba(91, 45, 171, 0.2);
+}

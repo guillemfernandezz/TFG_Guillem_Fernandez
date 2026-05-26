@@ -49,33 +49,38 @@ def arrel():
     return {"missatge": "Benvingut a l'API del Visor de Patrimoni. Afegeix /docs a la URL per veure la documentació."}
 
 @app.get("/api/patrimonio")
-def obtenir_patrimoni(limit: int = 1000):
+def obtenir_patrimoni(
+    limit: int = 30000,
+    minx: float = -180.0, miny: float = -90.0,
+    maxx: float = 180.0,  maxy: float = 90.0,
+):
     """
     Retorna els monuments històrics en format GeoJSON.
-    Accepta un paràmetre 'limit' per no saturar el mapa si hi ha massa dades.
+    Accepta bbox (minx/miny/maxx/maxy) per filtrar per àrea visible i un 'limit' màxim.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     try:
-        # Consulta SQL combinant els camps de text amb la funció ST_AsGeoJSON per a la geometria
-        query = f"""
-            SELECT 
-                id_wikidata, 
-                nom, 
-                descripcio, 
-                categoria, 
-                estil, 
-                proteccio, 
-                url_oficial_gencat, 
-                imatge_url, 
-                google_maps_url, 
+        query = """
+            SELECT
+                id_wikidata,
+                nom,
+                descripcio,
+                categoria,
+                estil,
+                proteccio,
+                url_oficial_gencat,
+                imatge_url,
+                google_maps_url,
                 wikipedia_url,
                 ST_AsGeoJSON(geometry)::json AS geometry
             FROM ide_cultural.patrimoni_monumental
-            LIMIT {limit};
+            WHERE ST_Intersects(geometry, ST_MakeEnvelope(%s, %s, %s, %s, 4326))
+              AND LOWER(COALESCE(categoria, '')) NOT IN ('masia', 'mas', 'mas forestal', 'masies')
+            LIMIT %s;
         """
-        cursor.execute(query)
+        cursor.execute(query, (minx, miny, maxx, maxy, limit))
         resultats = cursor.fetchall()
         
         # Construïm l'estructura oficial GeoJSON requerida per Leaflet
@@ -112,32 +117,40 @@ def obtenir_patrimoni(limit: int = 1000):
         conn.close()
 
 @app.get("/api/agenda")
-def obtenir_agenda(limit: int = 500):
+def obtenir_agenda(
+    limit: int = 1000,
+    minx: float = -180.0, miny: float = -90.0,
+    maxx: float = 180.0,  maxy: float = 90.0,
+):
     """
     Retorna els esdeveniments culturals actius en format GeoJSON.
+    Accepta bbox (minx/miny/maxx/maxy) per filtrar per àrea visible.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     try:
-        query = f"""
-            SELECT 
-                id,
-                denominacio,
+        query = """
+            SELECT
+                id_uuid AS id,
+                nom AS denominacio,
                 data_inici,
                 data_fi,
                 espai,
                 municipi,
-                comarca,
-                enllac,
-                imatge,
+                link_entrades AS enllac,
+                imatge_url AS imatge,
                 descripcio,
-                tags_cerca,
+                categoria,
+                horari,
+                gratuita,
+                adrecca,
                 ST_AsGeoJSON(geometry)::json AS geometry
-            FROM ide_cultural.agenda_dinamica
-            LIMIT {limit};
+            FROM ide_cultural.agenda_cultural
+            WHERE ST_Intersects(geometry, ST_MakeEnvelope(%s, %s, %s, %s, 4326))
+            LIMIT %s;
         """
-        cursor.execute(query)
+        cursor.execute(query, (minx, miny, maxx, maxy, limit))
         resultats = cursor.fetchall()
         
         features = []
@@ -146,7 +159,8 @@ def obtenir_agenda(limit: int = 500):
                 "type": "Feature",
                 "geometry": row["geometry"],
                 "properties": {
-                    k: (str(v) if k in ['data_inici', 'data_fi'] and v else v) # Convertim les dates a text (ISO format)
+                    # Convertimos las marcas de tiempo de PostgreSQL a texto (ISO format)
+                    k: (str(v) if k in ['data_inici', 'data_fi'] and v else v) 
                     for k, v in row.items() if k != 'geometry'
                 }
             }
@@ -154,17 +168,6 @@ def obtenir_agenda(limit: int = 500):
             
         return {
             "type": "FeatureCollection",
-            "metadata": {
-                "titol": "Agenda Cultural Dinàmica de Catalunya",
-                "font": "Generalitat de Catalunya - Departament de Cultura",
-                "data_generacio": datetime.now().isoformat(),
-                "crs": {
-                    "type": "name",
-                    "properties": { "name": "urn:ogc:def:crs:EPSG::4326" }
-                },
-                "total_elements_retornats": len(features),
-                "llicencia": "CC0 1.0 Universal"
-            },
             "features": features
         }
         
@@ -175,4 +178,64 @@ def obtenir_agenda(limit: int = 500):
         cursor.close()
         conn.close()
         
-    # Para arrancar el servidor, usar: uvicorn backend_api.main:app --reload en la carpeta raíz del proyecto.
+@app.get("/api/metadata")
+def obtenir_metadades():
+    """
+    Retorna metadades del conjunt de dades seguint l'estructura NEM (Núcleo Español de Metadatos)
+    basat en ISO 19115 / INSPIRE.
+    """
+    return {
+        "fileIdentifier": "cat-ide-cultural-v1",
+        "language": "cat",
+        "characterSet": "utf8",
+        "hierarchyLevel": "dataset",
+        "contact": {
+            "organisationName": "L'Atles Cultural — IDE de Catalunya",
+            "role": "pointOfContact"
+        },
+        "dateStamp": datetime.now().isoformat(),
+        "identificationInfo": {
+            "citation": {
+                "title": "IDE Cultural de Catalunya — Patrimoni i Agenda",
+                "date": "2025-01-01",
+                "edition": "1.0"
+            },
+            "abstract": (
+                "Infraestructura de Dades Espacials que integra el patrimoni arquitectònic i monumental "
+                "de Catalunya (via Wikidata) i l'agenda cultural dinàmica (via Generalitat de Catalunya). "
+                "Les dades es serveixen en format GeoJSON filtrat per bounding box."
+            ),
+            "language": "cat",
+            "topicCategory": "society",
+            "extent": {
+                "geographicBoundingBox": {
+                    "westBoundLongitude": 0.159,
+                    "eastBoundLongitude": 3.334,
+                    "southBoundLatitude": 40.520,
+                    "northBoundLatitude": 42.860,
+                    "crs": "EPSG:4326"
+                }
+            },
+            "spatialResolution": "1:50000",
+            "maintenanceInfo": {
+                "maintenanceAndUpdateFrequency": "daily"
+            }
+        },
+        "distributionInfo": {
+            "distributionFormat": "GeoJSON",
+            "onlineResource": {
+                "patrimoni": "/api/patrimonio",
+                "agenda": "/api/agenda",
+                "docs": "/docs"
+            }
+        },
+        "dataQualityInfo": {
+            "lineage": (
+                "Patrimoni: extret de Wikidata (SPARQL) i enriquit amb dades de la Generalitat de Catalunya. "
+                "Agenda: obtinguda de l'API oberta d'Agenda Cultural de la Generalitat. "
+                "Geometries emmagatzemades a PostGIS en EPSG:4326."
+            )
+        },
+        "metadataStandardName": "NEM — Núcleo Español de Metadatos (ISO 19115)",
+        "metadataStandardVersion": "ISO 19115:2003"
+    }

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>L'Atles Cultural | IDE de Catalunya</title>
+    <meta name="description" content="Infraestructura de Dades Espacials interactiva. Un viatge pel patrimoni cultural i la descentralització del turisme a Catalunya.">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="reading-progress">
+        <div id="progress-bar"></div>
+    </div>
+
+    <button id="btn-saltar-intro" class="btn-saltar-intro" title="Anar directament al visor">
+        <i class="fa-solid fa-forward-fast"></i> Explorar ara
+    </button>
+
+    <div id="map" aria-label="Mapa interactiu 2D de Catalunya" role="application"></div>
+
+    <main id="story">
+        
+        <section id="cap-intro" class="step">
+            <div class="card intro-card text-center">
+                <div class="glow-circle"></div>
+                <h1 class="title-hero">L'Atles Cultural</h1>
+                <p class="subtitle-hero">Cartografia de la memòria, el patrimoni i la festa.</p>
+                <div class="editorial-text">
+                    <p>Un exercici de periodisme de dades i enginyeria geomàtica. Hem indexat, netejat i emmagatzemat en PostGIS milers de monuments i esdeveniments per entendre com respira el nostre país.</p>
+                </div>
+                <div class="scroll-prompt">
+                    <span class="prompt-text">Endinsa't en les dades</span>
+                    <div class="mouse-icon"><div class="wheel"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="cap-context" class="step">
+            <div class="card glass-dark split-card">
+                <div class="card-content">
+                    <div class="chapter-label">01 / El Repte Territorial</div>
+                    <h2>La gravetat litoral</h2>
+                    <p>El turisme a Catalunya pateix un fenomen físic similar a la gravetat: el 80% dels visitants se concentren en un 15% del territori, principalment a l'àrea metropolitana i la costa.</p>
+                    <p>Aquesta asimetria buida l'interior de recursos. Necessitem eines intel·ligents per <b>redistribuir el flux</b> i posar en valor la perifèria interior.</p>
+                </div>
+                <div class="card-data-viz text-center">
+                    <i class="fa-solid fa-chart-pie" style="font-size: 5rem; color: #ef4444; filter: drop-shadow(0 0 15px rgba(239,68,68,0.4));"></i>
+                    <p style="margin-top: 15px; font-weight: bold;">Sobresaturació Litoral</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="cap-patrimoni" class="step">
+            <div class="card glass-dark align-right">
+                <div class="card-content">
+                    <div class="chapter-label">02 / Els Fonaments</div>
+                    <h2>Pedres amb memòria</h2>
+                    <div class="image-gallery">
+                        <img src="https://images.unsplash.com/photo-1583422409516-2895a77efded?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Montserrat" class="story-img main-img">
+                        <div class="image-caption">Béns Culturals d'Interès Nacional (BCIN) integrats des de PostGIS.</div>
+                    </div>
+                    <div class="editorial-text">
+                        <p>Abans d'entendre la festa, hem d'entendre l'escenari. Hem extret dades de la web semàntica de Wikidata per connectar el mapa comarcals amb monestirs, castells i patrimoni protegit.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="cap-festes" class="step">
+            <div class="card glass-dark align-left">
+                <div class="chapter-label">03 / El Batec Humà</div>
+                <h2>Foc, aigua i tradició</h2>
+                <p>La veritable identitat d'un país no es llegeix només als museus, sinó a les places. A través de la nostra base de dades geogràfica, digitalitzem la riquesa cultural immaterial.</p>
+                <div class="stats-grid">
+                    <div class="stat-box"><i class="fa-solid fa-fire"></i><span class="stat-num">🏰</span><span class="stat-desc">Castells</span></div>
+                    <div class="stat-box"><i class="fa-solid = fa-church"></i><span class="stat-num">⛪</span><span class="stat-desc">Esglésies</span></div>
+                    <div class="stat-box"><i class="fa-solid fa-monument"></i><span class="stat-num">🏺</span><span class="stat-desc">Museus</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="cap-agenda" class="step">
+            <div class="card glass-dark split-card">
+                <div class="card-data-viz text-center">
+                    <i class="fa-solid fa-satellite-dish pulse-blue" style="font-size: 4rem; color: var(--primary);"></i>
+                    <h3 style="margin-top:15px; font-family:'Poppins';">FastAPI + PostGIS</h3>
+                </div>
+                <div class="card-content">
+                    <div class="chapter-label">04 / Dinamisme</div>
+                    <h2>L'Agenda Oberta</h2>
+                    <p>Aquest atles no està congelat. Es connecta autònomament a la nostra API en Python. Les dades es serveixen sota demanda de forma ultrassònica al navegador.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="cap-explorador" class="step">
+            <div class="card transparent-trigger text-center">
+                <div class="end-journey">
+                    <h2>La narrativa acaba aquí.</h2>
+                    <p>L'exploració lliure és teva.</p>
+                    <div class="loading-dots"><span></span><span></span><span></span></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="ui-explorer" class="hidden" aria-hidden="true">
+        
+        <aside id="sidebar-left" class="glass-ui dashboard-panel">
+            <div class="sidebar-header">
+                <div class="logo-mini"><i class="fa-solid fa-map-location-dot"></i> L'Atles</div>
+                <button id="btn-back-story" class="btn-back" title="Tornar a la narrativa">
+                    <i class="fa-solid fa-arrow-left"></i> Narrativa
+                </button>
+            </div>
+            <div id="loading-indicator" class="loading-bar hidden"></div>
+            
+            <div class="sidebar-body custom-scrollbar">
+                
+                <div class="filter-section">
+                    <h4>Cerca per Text</h4>
+                    <div class="input-group">
+                        <input type="text" id="inputCerca" placeholder="Ex: 'Castell', 'Santa Maria'...">
+                        <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h4>Categoria Patrimoni</h4>
+                    <div class="input-group">
+                        <select id="selectorCategoria">
+                            <option value="">-- Totes les categories --</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down select-icon"></i>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-header-row">
+                        <h4>Data de l'Esdeveniment</h4>
+                        <button id="btn-avui" class="chip-avui" title="Mostra els events d'avui">
+                            <i class="fa-regular fa-calendar-check"></i> Avui
+                        </button>
+                    </div>
+                    <div class="input-group">
+                        <input type="date" id="dataFiltre">
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h4>Capes del Mapa</h4>
+                    <div class="layer-toggles">
+                        <label class="layer-label">
+                            <input type="checkbox" id="check-patrimoni" checked style="accent-color: var(--primary);">
+                            <span>🏛️ Patrimoni Monumental</span>
+                        </label>
+                        <label class="layer-label">
+                            <input type="checkbox" id="check-agenda" checked style="accent-color: var(--festa-color);">
+                            <span>📅 Agenda Cultural</span>
+                            <span id="count-agenda" class="layer-count count-agenda">—</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h4>Categoria Agenda</h4>
+                    <div class="input-group">
+                        <select id="selectorCategoriaAgenda">
+                            <option value="">— Totes les categories —</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down select-icon"></i>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button id="btn-filtrar" class="btn-execute">Aplica Filtres</button>
+                    <button id="btn-reset" class="btn-reset">Reset</button>
+                </div>
+                <button id="btn-sorpren" class="btn-sorpren-sidebar">
+                    <i class="fa-solid fa-shuffle"></i> Sorprèn-me!
+                </button>
+                <div id="result-container">
+                    <p id="resultat-text" class="status-text"></p>
+                </div>
+            </div>
+        </aside>
+
+        <div id="zoom-overlay" class="zoom-overlay hidden">
+            <i class="fa-solid fa-magnifying-glass-plus"></i>
+            <span>Apropa't per veure monuments i events (zoom ≥ 9)</span>
+        </div>
+
+        <div id="btn-geo-float" class="radar-bar-integrated">
+            <div class="radar-bar-icon"><i class="fa-solid fa-location-crosshairs"></i></div>
+            <span>Què tinc a prop?</span>
+        </div>
+
+        <aside id="sidebar-right" class="glass-ui dashboard-panel collapsed">
+            <div id="toggle-right-panel" class="toggle-tab">
+                <span class="vertical-text">RADAR</span>
+            </div>
+            <div class="right-panel-content">
+                <div class="radar-header">
+                    <h3>Proximitat</h3>
+                    <div class="radar-ping"></div>
+                </div>
+                <p class="subtitle" style="font-size: 0.8rem; color: var(--text-muted);">Anàlisi de proximitat espacial (Turf.js)</p>
+                <div id="llista-propers" class="llista-esdeveniments custom-scrollbar">
+                    <div class="empty-state">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <p>Pendents de senyal GPS...</p>
+                    </div>
+                </div>
+                <button id="btn-genera-ruta" class="ruta-btn">
+                    <i class="fa-solid fa-route"></i> Genera Ruta Cultural
+                </button>
+            </div>
+        </aside>
+
+        <div id="basemap-widget" class="basemap-widget dashboard-panel">
+            <button id="btn-basemap-toggle" class="basemap-main-btn" title="Canviar mapa base">
+                <div class="bm-thumb swatch-satellite"></div>
+                Satèl·lit
+            </button>
+            <div id="basemap-panel" class="bm-panel hidden">
+                <div class="bm-opt active" data-bm="satellite">
+                    <div class="bm-thumb swatch-satellite"></div>
+                    <span>Satèl·lit</span>
+                </div>
+                <div class="bm-opt" data-bm="dark">
+                    <div class="bm-thumb swatch-dark"></div>
+                    <span>Fosc</span>
+                </div>
+                <div class="bm-opt" data-bm="light">
+                    <div class="bm-thumb swatch-light"></div>
+                    <span>Clar</span>
+                </div>
+                <div class="bm-opt" data-bm="topo">
+                    <div class="bm-thumb swatch-topo"></div>
+                    <span>Topogràfic</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Welcome Modal -->
+    <div id="welcome-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <div class="welcome-card">
+            <div class="welcome-icon-row">
+                <i class="fa-solid fa-map-location-dot"></i>
+            </div>
+            <h2 id="welcome-title">L'Atles Cultural</h2>
+            <p class="welcome-subtitle">Explora el patrimoni monumental i l'agenda cultural de Catalunya en un sol mapa.</p>
+            <div class="guide-list">
+                <div class="guide-item">
+                    <span class="guide-emoji">🔍</span>
+                    <div><strong>Cerca i filtra</strong><span>Busca per nom, categoria o data des de la barra lateral esquerra.</span></div>
+                </div>
+                <div class="guide-item">
+                    <span class="guide-emoji">🗺️</span>
+                    <div><strong>Navega pel mapa</strong><span>Apropa't per veure detalls. Els punts s'agrupen en clústers automàticament.</span></div>
+                </div>
+                <div class="guide-item">
+                    <span class="guide-emoji">🗓️</span>
+                    <div><strong>Avui al territori</strong><span>S'han carregat els events d'avui automàticament. Canvia la data quan vulguis.</span></div>
+                </div>
+                <div class="guide-item">
+                    <span class="guide-emoji">📍</span>
+                    <div><strong>Radar de proximitat</strong><span>El botó inferior central usa el teu GPS per llistar el que tens a prop.</span></div>
+                </div>
+            </div>
+            <button id="btn-welcome-close" class="btn-welcome">
+                Explorar ara <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <label class="welcome-no-show">
+                <input type="checkbox" id="no-show-again"> No tornar a mostrar
+            </label>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <script src="app.js"></script>
+</body>
+</html>
