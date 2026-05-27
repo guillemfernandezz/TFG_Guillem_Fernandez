@@ -191,15 +191,16 @@ def obtenir_metadades():
         "hierarchyLevel": "dataset",
         "contact": {
             "organisationName": "L'Atles Cultural — IDE de Catalunya",
-            "role": "pointOfContact"
+            "role": "guillemfernandezz@gmail.com"
         },
         "dateStamp": datetime.now().isoformat(),
         "identificationInfo": {
             "citation": {
                 "title": "IDE Cultural de Catalunya — Patrimoni i Agenda",
-                "date": "2025-01-01",
-                "edition": "1.0"
-            },
+                "edition": "1.0",
+                "date_creation": "2026-06-15",
+                "date_revision": datetime.now().date().isoformat()
+        },
             "abstract": (
                 "Infraestructura de Dades Espacials que integra el patrimoni arquitectònic i monumental "
                 "de Catalunya (via Wikidata) i l'agenda cultural dinàmica (via Generalitat de Catalunya). "
