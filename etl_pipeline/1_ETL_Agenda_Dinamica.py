@@ -6,11 +6,11 @@ import sys
 
 # 1. Configuración del entorno
 DB_CONFIG = {
-    "host":"aws-0-eu-west-3.pooler.supabase.com",
-    "port":"5432",
-    "database":"postgres",
-    "user":"postgres.gcrmpmoqtxmmzjngqguo",
-    "password":"h/_NvWb5QTBaRhC"
+    "dbname": "events_db",
+    "user": "postgres",
+    "password": "Tucans97", 
+    "host": "localhost",
+    "port": "5432"
 }
 
 # API Agenda Cultural Generalitat
