@@ -468,13 +468,16 @@ function precrearMarkers() {
 function passaFiltrPatrimoni(feat) {
     const p    = feat.properties;
     const text = document.getElementById('inputCerca').value.toLowerCase();
-    const cat  = document.getElementById('selectorCategoria').value.toLowerCase();
+    const cat  = document.getElementById('selectorCategoria').value;
     if (text) {
         const nom  = (p.nom        || '').toLowerCase();
         const desc = (p.descripcio || '').toLowerCase();
         if (!nom.includes(text) && !desc.includes(text)) return false;
     }
-    if (cat && !(p.categoria || '').toLowerCase().includes(cat)) return false;
+    if (cat) {
+        const catNorm = normalitzarCategoria(p.categoria || '', NORM_PATRIMONI);
+        if (catNorm !== cat) return false;
+    }
     return true;
 }
 
@@ -482,7 +485,7 @@ function passaFiltrAgenda(feat) {
     const p         = feat.properties;
     const text      = document.getElementById('inputCerca').value.toLowerCase();
     const data      = document.getElementById('dataFiltre').value;
-    const catAgenda = document.getElementById('selectorCategoriaAgenda').value.toLowerCase();
+    const catAgenda = document.getElementById('selectorCategoriaAgenda').value;
     if (text) {
         const nom  = (p.denominacio || '').toLowerCase();
         const desc = (p.descripcio  || '').toLowerCase();
@@ -494,7 +497,10 @@ function passaFiltrAgenda(feat) {
         if (inici && fi)  { if (data < inici || data > fi) return false; }
         else if (inici)   { if (data !== inici) return false; }
     }
-    if (catAgenda && !(p.categoria || '').toLowerCase().includes(catAgenda)) return false;
+    if (catAgenda) {
+        const catNorm = normalitzarCategoria(p.categoria || '', NORM_AGENDA);
+        if (catNorm !== catAgenda) return false;
+    }
     return true;
 }
 
@@ -530,6 +536,91 @@ function aplicarFiltres() {
 }
 
 /* =============================================================================
+   NORMALITZACIÓ DE CATEGORIES
+   ============================================================================= */
+// Mapa de normalització: qualsevol clau (substring lowercase) → etiqueta canònica
+const NORM_PATRIMONI = [
+    [['església', 'iglesia', 'church'],             'església'],
+    [['ermita'],                                     'ermita'],
+    [['capella', 'capilla'],                         'capella'],
+    [['oratori'],                                    'oratori'],
+    [['monestir', 'monasterio', 'monastery'],        'monestir'],
+    [['convent'],                                    'convent'],
+    [['castell', 'castillo', 'castle'],              'castell'],
+    [['torre de defensa', 'torre defensiva'],        'torre de defensa'],
+    [['torre'],                                      'torre'],
+    [['muralla', 'murallada'],                       'muralla'],
+    [['palau', 'palacio', 'palace'],                 'palau'],
+    [['pont', 'puente', 'bridge'],                   'pont'],
+    [['museu', 'museo', 'museum'],                   'museu'],
+    [['biblioteca'],                                 'biblioteca'],
+    [['teatre', 'teatro'],                           'teatre'],
+    [['jaciment arqueol', 'yacimiento arqueol'],     'jaciment arqueològic'],
+    [['dolmen'],                                     'dolmen'],
+    [['cova', 'cueva', 'cave'],                      'cova'],
+    [['arbre singular', 'arbre monumental'],         'arbre singular'],
+    [['jardí', 'jardín', 'garden', 'parc'],          'jardí / parc'],
+    [['font', 'fuente'],                             'font'],
+    [['pou'],                                        'pou'],
+    [['cementiri', 'cementerio'],                    'cementiri'],
+    [['creu de terme', 'creu'],                      'creu de terme'],
+    [['far'],                                        'far'],
+    [['molí', 'molino', 'mill'],                     'molí'],
+    [['aqüeducte', 'acueducto'],                     'aqüeducte'],
+    [['menhir', 'pedra dreta'],                      'menhir'],
+];
+
+const NORM_AGENDA = [
+    [['música', 'musica', 'concert', 'recital'],     'música / concert'],
+    [['teatre', 'teatro'],                            'teatre'],
+    [['dansa', 'danza', 'ball'],                      'dansa'],
+    [['circ'],                                        'circ'],
+    [['exposici', 'exposición', 'mostra'],            'exposició'],
+    [['art', 'arts visuals', 'arts plàstiques'],      'arts visuals'],
+    [['festa major', 'festa patronal'],               'festa major'],
+    [['festa', 'fiesta', 'celebraci'],                'festa / celebració'],
+    [['fira', 'mercat', 'feria', 'mercado'],          'fira / mercat'],
+    [['cinema', 'audiovisual', 'film', 'projecci'],   'cinema / audiovisual'],
+    [['esport', 'deporte', 'esportiu'],               'esport'],
+    [['gastronomia', 'gastro', 'cuina', 'cuisine'],   'gastronomia'],
+    [['infantil', 'familiar', 'família'],             'familiar / infantil'],
+    [['natura', 'medi ambient', 'mediambiental'],     'natura'],
+    [['ciència', 'tecnologia', 'ciencia'],            'ciència / tecnologia'],
+    [['conferència', 'conferencia', 'xerrada', 'taula rodona'], 'conferència'],
+    [['patrimoni', 'heritage'],                       'patrimoni'],
+    [['cultura', 'cultural'],                         'cultura'],
+    [['literatura', 'poesia', 'lectura'],             'literatura'],
+    [['taller', 'workshop'],                          'taller'],
+];
+
+// Extreu el token llegible d'un slug tipus "agenda:categories/concerts" -> "concerts"
+function desSlug(s) {
+    const darrer = s.trim().split('/').pop();
+    return darrer.replace(/-/g, ' ').toLowerCase();
+}
+
+// Desdobla camps amb multiples slugs separats per comes, normalitza cada token
+// i retorna l'etiqueta canonica del primer match.
+function normalitzarCategoria(cat, normMap) {
+    if (!cat) return null;
+    const c = cat.toLowerCase().trim();
+
+    // Si conte ':' o '/' es un slug de taxonomia (ex: "agenda:categories/concerts,agenda:categories/dansa")
+    const tokens = (c.includes(':') || c.includes('/'))
+        ? c.split(',').map(desSlug)
+        : [c];
+
+    for (const token of tokens) {
+        for (const [keys, canonical] of normMap) {
+            if (keys.some(k => token.includes(k))) return canonical;
+        }
+    }
+
+    // Fallback: primer token net
+    return tokens[0] || c;
+}
+
+/* =============================================================================
    SELECTORS DE CATEGORIA (des de dades reals)
    ============================================================================= */
 function actualitzarSelectCategories() {
@@ -539,18 +630,26 @@ function actualitzarSelectCategories() {
 
     const comptes = {};
     state.patrimoniMarkers.forEach(m => {
-        const cat = (m.feature.properties.categoria || '').toLowerCase().trim();
+        const raw = (m.feature.properties.categoria || '').trim();
+        const cat = normalitzarCategoria(raw, NORM_PATRIMONI);
         if (cat) comptes[cat] = (comptes[cat] || 0) + 1;
     });
 
-    Object.entries(comptes).sort((a, b) => b[1] - a[1]).forEach(([cat, count]) => {
-        const opt = document.createElement('option');
-        opt.value       = cat;
-        opt.textContent = `${emojiPatrimoni(cat)} ${capitalitzar(cat)} (${count})`;
-        select.appendChild(opt);
-    });
+    Object.entries(comptes)
+        .filter(([, count]) => count >= 3)           // Umbral mínim
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)                                 // Top 20
+        .forEach(([cat, count]) => {
+            const opt = document.createElement('option');
+            opt.value       = cat;
+            opt.textContent = `${emojiPatrimoni(cat)} ${capitalitzar(cat)} (${count})`;
+            select.appendChild(opt);
+        });
 
-    select.value = valorActual;
+    // Restaura el valor seleccionat si segueix existint al nou selector
+    if ([...select.options].some(o => o.value === valorActual)) {
+        select.value = valorActual;
+    }
 }
 
 function actualitzarSelectCategoriesAgenda() {
@@ -560,18 +659,25 @@ function actualitzarSelectCategoriesAgenda() {
 
     const comptes = {};
     state.agendaMarkers.forEach(m => {
-        const cat = (m.feature.properties.categoria || '').toLowerCase().trim();
+        const raw = (m.feature.properties.categoria || '').trim();
+        const cat = normalitzarCategoria(raw, NORM_AGENDA);
         if (cat) comptes[cat] = (comptes[cat] || 0) + 1;
     });
 
-    Object.entries(comptes).sort((a, b) => b[1] - a[1]).forEach(([cat, count]) => {
-        const opt = document.createElement('option');
-        opt.value       = cat;
-        opt.textContent = `${emojiAgenda(cat)} ${capitalitzar(cat)} (${count})`;
-        select.appendChild(opt);
-    });
+    Object.entries(comptes)
+        .filter(([, count]) => count >= 3)           // Umbral mínim
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)                                 // Top 20
+        .forEach(([cat, count]) => {
+            const opt = document.createElement('option');
+            opt.value       = cat;
+            opt.textContent = `${emojiAgenda(cat)} ${capitalitzar(cat)} (${count})`;
+            select.appendChild(opt);
+        });
 
-    select.value = valorActual;
+    if ([...select.options].some(o => o.value === valorActual)) {
+        select.value = valorActual;
+    }
 }
 
 /* =============================================================================

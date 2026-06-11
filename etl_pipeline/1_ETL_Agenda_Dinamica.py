@@ -6,11 +6,11 @@ import sys
 
 # 1. Configuración del entorno
 DB_CONFIG = {
-    "host":"aws-0-eu-west-3.pooler.supabase.com",
-    "port":"5432",
-    "database":"postgres",
-    "user":"postgres.gcrmpmoqtxmmzjngqguo",
-    "password":"h/_NvWb5QTBaRhC"
+    'dbname': 'events_db',
+    'user' : 'postgres',
+    'password': 'Tucans97',
+    'host': 'localhost',
+    'port': '5432'
 }
 
 # API Agenda Cultural Generalitat
@@ -128,6 +128,27 @@ def transformar_dades(dades_brutes):
     return dades_netes
 
 # 5. Carga de datos
+def purgar_events_caducats():
+    """Elimina de PostGIS els esdeveniments amb data_fi anterior a avui."""
+    log("Purgant esdeveniments caducats de PostGIS...")
+    sql_purga = """
+        DELETE FROM ide_cultural.agenda_cultural
+        WHERE data_fi < NOW();
+    """
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute(sql_purga)
+        eliminats = cursor.rowcount
+        conn.commit()
+        log(f"Purga completada: {eliminats} esdeveniments caducats eliminats.")
+    except psycopg2.Error as e:
+        log(f"Error durant la purga: {e}")
+        if conn: conn.rollback()
+    finally:
+        if 'cursor' in locals(): cursor.close()
+        if 'conn' in locals(): conn.close()
+
 def carregar_a_postgis(dades_netes):
     log("Inciando UPSERT en PostGIS ...")
     
@@ -178,6 +199,7 @@ if __name__ == "__main__":
     print("="*50 )
     
     preparar_base_de_dades()
+    purgar_events_caducats()
     dades_api = extreure_dades_api()
     dades_processades = transformar_dades(dades_api)
     carregar_a_postgis(dades_processades)

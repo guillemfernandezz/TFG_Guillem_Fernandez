@@ -9,13 +9,12 @@ import threading
 
 # 1. Configuración del entorno
 DB_CONFIG = {
-    "host":"aws-0-eu-west-3.pooler.supabase.com",
-    "port":"5432",
-    "database":"postgres",
-    "user":"postgres.gcrmpmoqtxmmzjngqguo",
-    "password":"h/_NvWb5QTBaRhC"
+    'dbname': 'events_db',
+    'user' : 'postgres',
+    'password': 'Tucans97',
+    'host': 'localhost',
+    'port': '5432'
 }
-
 
 WIKIDATA_ENDPOINT = "https://query.wikidata.org/sparql"
 HEADERS = {
@@ -112,10 +111,44 @@ def processar_node(centre, index, total_centres, monuments_dict, dict_lock):
             bd:serviceParam wikibase:center "Point({lon} {lat})"^^geo:wktLiteral.
             bd:serviceParam wikibase:radius "16".
         }}
-        {{ ?monument wdt:P1600 ?idIpac. }} UNION {{ ?monument wdt:P3861 ?idArqueo. }}
-        
+        {{
+            {{ ?monument wdt:P1600 ?idIpac. }}        # IPAC (Inventari del Patrimoni Arquitectònic de Catalunya)
+            UNION
+            {{ ?monument wdt:P3861 ?idArqueo. }}       # Identificador arqueològic EGIPCI
+            UNION
+            {{ ?monument wdt:P3744 ?idBpca. }}         # BPCA (Bé del Patrimoni Cultural d'Aragó, cobertura fronterera)
+            UNION
+            {{ ?monument wdt:P6203 ?idIbpci. }}        # IBPCI (Inventari de Béns del Patrimoni Cultural Immaterial)
+            UNION
+            {{                                         # BCIN via P1435 = wd:Q23790
+                ?monument wdt:P1435 wd:Q23790.
+            }}
+            UNION
+            {{                                         # BCIL via P1435 = wd:Q15700834
+                ?monument wdt:P1435 wd:Q15700834.
+            }}
+            UNION
+            {{                                         # BIC (Bien de Interés Cultural estatal)
+                ?monument wdt:P1435 wd:Q23776.
+            }}
+        }}
+
         ?monument wdt:P18 ?imatge;
                   wdt:P31 ?categoria.
+
+        # Exclusió de categories residencials sense valor patrimonial expositiu
+        FILTER NOT EXISTS {{
+            ?monument wdt:P31 ?catExcluida.
+            VALUES ?catExcluida {{
+                wd:Q1649060    # masia
+                wd:Q2652178    # mas (explotació agrícola)
+                wd:Q56242238   # mas forestal
+                wd:Q3558316    # masoveria
+                wd:Q13393285   # habitatge rural
+                wd:Q3947        # casa (residència genèrica)
+                wd:Q19842071   # casa unifamiliar
+            }}
+        }}
                   
         OPTIONAL {{ ?monument wdt:P1435 ?proteccio. }}
         OPTIONAL {{ ?monument wdt:P149 ?estil. }}
@@ -207,7 +240,7 @@ def transformar_dades(dades_brutes):
             monument = {
                 "id_wikidata": id_net,
                 "nom": item.get("monumentLabel", {}).get("value", "Monument sense nom"),
-                "descripcio": item.get("desc", {}).get("value", "Sense descripció disponible"),
+                "descripcio": (lambda d: d[0].upper() + d[1:] if d else "Sense descripció disponible")(item.get("desc", {}).get("value", "")),
                 "categoria": item.get("catLabel", {}).get("value", "Monument"),
                 "estil": item.get("estilLabel", {}).get("value", "Desconegut"),
                 "proteccio": item.get("proteccioLabel", {}).get("value", "Inventariat"),
