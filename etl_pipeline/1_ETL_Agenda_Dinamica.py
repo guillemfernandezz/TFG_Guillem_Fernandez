@@ -5,12 +5,17 @@ from datetime import datetime
 import sys
 
 # 1. Configuración del entorno
+# Credencials fora del codi: es llegeixen de .env (no versionat). Vegeu .env.example
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 DB_CONFIG = {
-    'dbname': 'events_db',
-    'user' : 'postgres',
-    'password': 'Tucans97',
-    'host': 'localhost',
-    'port': '5432'
+    "dbname": os.getenv("PGDATABASE", "events_db"),
+    "user": os.getenv("PGUSER", "postgres"),
+    "password": os.environ["PGPASSWORD"],
+    "host": os.getenv("PGHOST", "localhost"),
+    "port": os.getenv("PGPORT", "5432"),
 }
 
 # API Agenda Cultural Generalitat
