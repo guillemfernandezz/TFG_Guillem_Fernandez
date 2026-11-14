@@ -28,4 +28,4 @@ Que `ST_Intersects` por bbox use un índice espacial en lugar de recorrer la tab
 - 2026-11-14: el autor confirma que `EXPLAIN` en pgAdmin usa `agenda_cultural_geometry_gist` en `agenda_cultural`.
 
 ## Next
-PR de `feat/indices-gist` abierto. Falta revisión y merge.
+Abrir el PR de `feat/indices-gist` desde GitHub (no hay `gh` en esta máquina). Después, revisión y merge.
