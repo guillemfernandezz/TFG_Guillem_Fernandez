@@ -55,6 +55,9 @@ def preparar_base_de_dades():
             lon NUMERIC(10, 6),
             geometry geometry(Point, 4326)
         );
+
+        CREATE INDEX IF NOT EXISTS patrimoni_monumental_geometry_gist
+            ON ide_cultural.patrimoni_monumental USING GIST (geometry);
     """
     conn = None
     cursor = None
