@@ -32,7 +32,7 @@ Todo lo que aparece aquí se ha comprobado leyendo el código (commit `cad7edc`)
 
 ## Deuda técnica detectada (pendiente, sin resolver)
 
-1. **No se crea ningún índice GiST** en las geometrías. `ST_Intersects` recorre la tabla entera. Habría que añadir `CREATE INDEX ... USING GIST (geometry)` en los dos `CREATE TABLE`.
+1. ~~**No se crea ningún índice GiST** en las geometrías.~~ Resuelto en la rama `feat/indices-gist`: los dos ETL crean `agenda_cultural_geometry_gist` y `patrimoni_monumental_geometry_gist` con `CREATE INDEX IF NOT EXISTS ... USING GIST (geometry)`. Verificado el 2026-11-14 en `patrimoni_monumental`: `EXPLAIN` muestra `Bitmap Index Scan on patrimoni_monumental_geometry_gist`. En `agenda_cultural` falta comprobarlo.
 2. **El límite por defecto es de 30 000 elementos** en `/api/patrimonio` y no tiene tope máximo. Hay que validarlo con `Query(le=...)`.
 3. **CORS:** `allow_origins=["*"]` junto con `allow_credentials=True`.
 4. `except Exception` genérico con `print` en lugar de `logging`.

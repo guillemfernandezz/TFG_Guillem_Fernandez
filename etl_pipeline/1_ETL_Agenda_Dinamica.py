@@ -56,6 +56,9 @@ def preparar_base_de_dades():
             lon NUMERIC(10, 6),
             geometry geometry(Point, 4326)
         );
+
+        CREATE INDEX IF NOT EXISTS agenda_cultural_geometry_gist
+            ON ide_cultural.agenda_cultural USING GIST (geometry);
     """
     
     try:
